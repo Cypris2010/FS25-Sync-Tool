@@ -25,7 +25,14 @@ let FSFolderPath = ref('')
 
 // ### IPC Handlers
 // const checkMods = () => window.electron.ipcRenderer.send('checkMods')
-const checkMods = () => window.renderer.checkMods()
+function buttonTimer() {
+  const buttonTimer = setTimeout(enableButtons, 10000)
+}
+function checkMods() {
+  disableButtons()
+  buttonTimer()
+  window.renderer.checkMods()
+}
 const checkModsAllServers = () => window.renderer.checkModsAllServers()
 // const welcome = () => window.electron.ipcRenderer.send('welcome')
 const saveModserverUrl = () => window.electron.ipcRenderer.send('saveModserverUrl', modserverUrl)
@@ -119,6 +126,45 @@ window.electron.ipcRenderer.on('IPC_sendFSClosed', (event, props) => {
 })
 
 
+function disableButtons() {
+  //btnCheckmods.disabled = 'disabled'
+  let btnCheckMods = document.getElementById('btnCheckMods')
+  let btnCheckModsAll = document.getElementById('btnCheckModsAll')
+  let btnProfiles = document.getElementById('btnProfiles')
+  let btnPlay = document.getElementById('btnPlay')
+  // btnCheckMods.setAttribute('disabled','disabled')
+  // btnCheckModsAll.setAttribute('disabled','disabled')
+  // btnProfiles.setAttribute('disabled','disabled')
+  // btnPlay.setAttribute('disabled','disabled')
+  
+  $('#btnCheckMods').addClass('no-click')
+  $('#btnCheckModsAll').addClass('no-click')
+  $('#btnProfiles').addClass('no-click')
+  $('#btnPlay').addClass('no-click')
+  // $('#btnCheckMods').attr('disabled','disabled') //disabled = "disabled"
+  // $('#btnCheckModsAll').attr('disabled','disabled') //disabled = "disabled"
+  // $('#btnProfiles').attr('disabled','disabled') //disabled = "disabled"
+  // $('#btnPlay').attr('disabled','disabled') //disabled = "disabled"
+}
+function enableButtons() {
+  let btnCheckMods = document.getElementById('btnCheckMods')
+  let btnCheckModsAll = document.getElementById('btnCheckModsAll')
+  let btnProfiles = document.getElementById('btnProfiles')
+  let btnPlay = document.getElementById('btnPlay')
+  // btnCheckMods.setAttribute('enabled','enabled')
+  // btnCheckModsAll.setAttribute('enabled','enabled')
+  // btnProfiles.setAttribute('enabled','enabled')
+  // btnPlay.setAttribute('enabled','enabled')
+  
+  $('#btnCheckMods').removeClass('no-click')
+  $('#btnCheckModsAll').removeClass('no-click')
+  $('#btnProfiles').removeClass('no-click')
+  $('#btnPlay').removeClass('no-click')
+  // $('#btnCheckMods').enabled = "enabled"
+  // $('#btnCheckModsAll').enabled = "enabled"
+  // $('#btnProfiles').enabled = "enabled"
+  // $('#btnPlay').enabled = "enabled"
+}
 
 const { open, close } = useModal({
   component: Modal_backupDisabled,
@@ -270,10 +316,10 @@ getServerList()
         <h2>V1.3.0 is here!</h2><br />
         <strong>Big changes!</strong><br />
         <br />
-        Introducing Multi Server Sync: Add your favorite servers and keep up to date with a single click! <br />
+        Introducing Multi Server Sync: Add all your friends/community's servers and keep up to date with a single click! <br />
         <br />
-        <strong>Hurry up I want to play:</strong><br />
-        First: Click on "Profiles" and add your server(s).<br />
+        <strong>Hurry up I want to play: (REQUIRED STEPS)</strong><br />
+        First: Click on "Profiles" and add your server(s). Go to "Settings" and locate your FS25 folder.<br />
         Then select the server from the dropdown menu and click "Sync Mods" like usual. When finished press "Play".<br />
         <br />
         <strong>Tell me more!</strong><br />
@@ -281,7 +327,13 @@ getServerList()
         3 new buttons: "Play", "Profiles" and "Sync Mods ALL". <br />
         "Play" starts the game with the current profile mods loaded. Exiting the game will revert it back to the normal mods in your documents folder (default location). <br />
         "Profiles" opens the server profiles menu, where you can manage the servers. <br />
-        "Sync Mods ALL" starts the synchronizing of mods on ALL servers. Use with caution :D
+        "Sync Mods ALL" starts the synchronizing of mods on ALL servers. Use with caution :D<br />
+        <br />
+        <strong>How it works:</strong><br />
+        So for every server you add a new profile folder will be created. In that folder will be the mods from that server, and only that server. <br />
+        And upon the start of FarmSim via the FS25-Sync-Tool that whole profile will be loaded and nothing else. <br />
+        All your single player mods are untouched by this. <br />
+        The downside is that it tends to eat up space if you have a lot of servers. <br />
       </div>
       <div id="msgOverlay_close" class="text-end"><button class="btn btn-success" @click="closeChangelogMsg">Close</button></div>
     </div>
@@ -301,7 +353,8 @@ getServerList()
     <div class="actions">
       <div class="action">
         <div class="tooltipx_bottom">
-          <a target="_blank" rel="noreferrer" alt="Sync Mods with selected server" @click="checkMods">Sync Mods</a>
+          <!-- <a target="_blank" rel="noreferrer" alt="Sync Mods with selected server" @click="checkMods">Sync Mods</a> -->
+          <button id="btnCheckMods" @click="checkMods" class="spl-button">Sync Mods</button>
           <span class="tooltiptext_bottom">
             Sync mods of SELECTED server
           </span>
@@ -309,7 +362,8 @@ getServerList()
       </div>
       <div class="action">
         <div class="tooltipx_bottom">
-          <a target="_blank" rel="noreferrer" alt="Sync Mods with all servers" @click="checkModsAllServers">Sync Mods ALL</a>
+          <!-- <a target="_blank" rel="noreferrer" alt="Sync Mods with all servers" @click="checkModsAllServers">Sync Mods ALL</a> -->
+          <button id="btnCheckModsAll" @click="checkModsAllServers" class="spl-button">Sync Mods ALL</button>
           <span class="tooltiptext_bottom">
             Sync mods of ALL servers
           </span>
@@ -317,7 +371,8 @@ getServerList()
       </div>
       <div class="action">
         <div class="tooltipx_bottom">
-          <a target="_blank" rel="noreferrer" @click="openServerProfiles">Profiles</a>
+          <!-- <a target="_blank" rel="noreferrer" @click="openServerProfiles">Profiles</a> -->
+          <button id="btnProfiles" @click="openServerProfiles" class="spl-button">Profiles</button>
           <span class="tooltiptext_bottom">
             Manage servers
           </span>
@@ -325,7 +380,26 @@ getServerList()
       </div>
       <div class="action">
         <div class="tooltipx_bottom">
-          <a target="_blank" rel="noreferrer" @click="playFarmSim">Play</a>
+          <!-- <a target="_blank" rel="noreferrer" @click="playFarmSim">Play</a> -->
+          <button class="spl-play-button" id="btnPlay" @click="playFarmSim">
+            <div class="svg-wrapper-1">
+              <div class="svg-wrapper">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  width="24"
+                  height="24"
+                >
+                  <path fill="none" d="M0 0h24v24H0z"></path>
+                  <path
+                    fill="currentColor"
+                    d="M1.946 9.315c-.522-.174-.527-.455.01-.634l19.087-6.362c.529-.176.832.12.684.638l-5.454 19.086c-.15.529-.455.547-.679.045L12 14l6-8-8 6-8.054-2.685z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+            <span>Play</span>
+          </button>
           <span class="tooltiptext_bottom">
             Play with mods from selected server
           </span>
@@ -373,10 +447,10 @@ getServerList()
                 </tr>
                 <tr>
                   <td class="settings_td">
-                    Farming Simulator Folder Location:</td>
+                    Farming Simulator Installation Folder Location:</td>
                   <td class="settings_td">
                     <div class="input-group">
-                      <input v-model="FSFolderPath" type="text" class="form-control" value="FSFolderPath" />
+                      <input v-model="FSFolderPath" type="text" class="form-control" value="FSFolderPath" readonly />
                       <button class="btn btn-outline-secondary" type="button" id="locateFSFolder" @click="locateFSFolder">Locate</button>
                     </div>
                   </td>
@@ -386,7 +460,7 @@ getServerList()
                     Mod Folder Location:</td>
                   <td class="settings_td">
                     <div class="input-group">
-                      <input v-model="modFolderPath" type="text" class="form-control" value="modFolderPath" />
+                      <input v-model="modFolderPath" type="text" class="form-control" value="modFolderPath" readonly />
                       <button class="btn btn-outline-secondary" type="button" id="locateModFolder" @click="locateModFolder">Locate</button>
                     </div>
                   </td>

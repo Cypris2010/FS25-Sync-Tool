@@ -154,7 +154,7 @@ function openFolder(folderID) {
             <label for="profiles_serverName">Profiles Folder:</label>
           </div>
           <div class="input-group profiles_addServerWrapper text-end">
-            <input v-model="profileFolderPath" type="text" id="profiles_serverURL" class="form-control text-end" />
+            <input v-model="profileFolderPath" type="text" id="profiles_modFolder" class="form-control text-end" />
             <button class="btn btn-success" type="button" id="locateModFolder" @click="locateProfileFolder">Locate</button>
             <!-- <button type="button" class="btn btn-success" id="profiles_saveButton" @click="profiles_addServer">Save</button> -->
           </div>

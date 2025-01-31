@@ -6,7 +6,7 @@ import Axios from 'axios'
 import Config from 'electron-config'
 const config = new Config()
 import { autoUpdater } from 'electron-updater'
-import { existsSync } from 'fs'
+import { copyFileSync, existsSync, mkdirSync } from 'fs'
 import { upStats } from './stats'
 // import { exec } from 'child_process'
 // import utils from 'util'
@@ -324,6 +324,7 @@ app.whenReady().then(() => {
     IPC_minimizeToTray()
     IPC_anonymousStats()
     checkForChangelog()
+    backupGameSettingsXML()
     welcomeText()
   })
   
@@ -347,13 +348,13 @@ app.whenReady().then(() => {
     let pffl = config.get('profileFolderLocation')[0]
     let folderLocationPath = join(pffl, 'profiles', config.get('servers')[config.get('modserverID')].id)
   
-    console.log(folderLocationPath + '\\mods\\')
+    console.log('yada: ' + folderLocationPath + '\\mods\\')
     if (selectedFSVersion == '25') {
-      config.set('fs25_modFolderLocation', [folderLocationPath + '\\mods\\'])
+      //config.set('fs25_modFolderLocation', [folderLocationPath + '\\mods\\'])
       modsPath = folderLocationPath + '\\mods\\'
     } 
     if (selectedFSVersion == '22') {
-      config.set('fs22_modFolderLocation', [folderLocationPath + '\\mods\\'])
+      //config.set('fs22_modFolderLocation', [folderLocationPath + '\\mods\\'])
       modsPath = folderLocationPath + '\\mods\\'
     } 
 
@@ -578,6 +579,14 @@ app.whenReady().then(() => {
 })
 
 
+function backupGameSettingsXML() {
+  const folderLocationPath = config.get('profileFolderLocation')
+  if (!fs.existsSync(folderLocationPath + '\\backups\\')) {
+    fs.mkdirSync(folderLocationPath + '\\backups\\', {recursive: true})
+  }
+  fs.copyFileSync(gamesettingsXML, folderLocationPath + '\\backups\\gameSettings.xml')
+}
+
 async function IPC_profile_openServerInfo(id) {
   // console.log(typeof id)
   let slist = getJSONServerList(config.get('servers'))
@@ -634,8 +643,19 @@ function checkForChangelog() {
 
 let fsFolder
 let gamesettingsXML
-fsFolder = join(os.homedir(), 'Documents', 'My Games', 'FarmingSimulator2025')
-gamesettingsXML = join(fsFolder, 'gameSettings.xml')
+const oneDrivePath = os.homedir + '\\OneDrive\\Documents\\'
+
+if (fs.existsSync(oneDrivePath)) {
+  fsFolder = join(os.homedir(), 'OneDrive', 'Documents', 'My Games', 'FarmingSimulator2025')
+  gamesettingsXML = join(fsFolder, 'gameSettings.xml')
+} else {
+  fsFolder = join(os.homedir(), 'Documents', 'My Games', 'FarmingSimulator2025')
+  gamesettingsXML = join(fsFolder, 'gameSettings.xml')
+}
+
+console.log('gameSettings.xml: ' + gamesettingsXML)
+
+
 
 function runModManagerServerChange(serverID) {
   // okay
@@ -754,7 +774,9 @@ async function editGameSettingsXML(gamesettingsXML_local) {
 
 
 app.on('before-quit', () => {
-  disableCustomModsfolder(gamesettingsXML, config.get('modserverID'))
+  //disableCustomModsfolder(gamesettingsXML, config.get('modserverID'))
+  const folderLocationPath = config.get('profileFolderLocation')
+  fs.copyFileSync(folderLocationPath + '\\backups\\gameSettings.xml', gamesettingsXML)
 })
 
 
@@ -762,11 +784,9 @@ app.on('before-quit', () => {
 // for applications and their menu bar to stay active until the user quits
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
-  // setTimeout(() => {
-    if (process.platform !== 'darwin') {
-      app.quit()
-    }
-  // }, 3000)
+  if (process.platform !== 'darwin') {
+    app.quit()
+  }
 })
 
 
@@ -797,13 +817,19 @@ if (app.getVersion() == '1.2.3') {
 
 
 if (typeof config.get('servers') === 'undefined') {
-  const s = []
-  config.set('servers', JSON.stringify(s))
+  //const s = []
+  // config.set('servers', JSON.stringify(s))
+  config.set('servers', '')
 }
+// const oneDrivePath = os.homedir + '\\OneDrive\\Documents\\'
 
 
 if (typeof config.get('profileFolderLocation') === 'undefined') {
-  config.set('profileFolderLocation', os.homedir + '\\Documents\\My Games\\FS25-Sync-Tool-Profiles')
+  if (fs.existsSync(oneDrivePath)) {
+    config.set('profileFolderLocation', [ os.homedir + '\\OneDrive\\Documents\\My Games\\FS25-Sync-Tool' ])
+  } else {
+    config.set('profileFolderLocation', [ os.homedir + '\\Documents\\My Games\\FS25-Sync-Tool' ] )
+  }
 }
 if (typeof config.get('fs25_FSFolderLocation') === 'undefined') {
   config.set('fs25_FSFolderLocation', [""])
@@ -824,7 +850,7 @@ if (typeof config.get('minimizeToTray') === 'undefined') {
   config.set('minimizeToTray', 'disabled')
 }
 if (typeof config.get('previousVersion') === 'undefined') {
-  config.set('version', '1.2.5')
+  config.set('previousVersion', '1.2.5')
 }
 if (typeof config.get('periodicCheckInterval') === 'undefined') {
   config.set('periodicCheckInterval', '60') // default to 60 seconds
@@ -838,7 +864,6 @@ if (typeof config.get('selectedFSVersion') === 'undefined') {
 if (typeof config.get('modserverHostname') === 'undefined') {
   config.set('modserverHostname', '')
 }
-const oneDrivePath = os.homedir + '\\OneDrive\\Documents\\'
 let modsPath = ''
 if (typeof config.get('fs25_modFolderLocation') === 'undefined') {
   if (fs.existsSync(oneDrivePath)) {
@@ -883,6 +908,35 @@ function setMainVars() {
 function setDLUrl() {
   return serverUrl + '/mods/'
 }
+
+function setFirstRunServer() {
+  if (config.get('servers') != '') {
+    return
+  }
+  // config.set('servers', [])
+  const id = randomChars(8)
+  let pffl = config.get('profileFolderLocation')[0]
+  let folderLocationPath2 = join(pffl, 'profiles', id )
+  console.log(folderLocationPath2)
+
+  let newServerArray = [ { "id": id, "name": "", "url":"https://fs25.rotjong.xyz", "folder": folderLocationPath2 } ]
+  config.set('servers', newServerArray)
+
+  // check if folders exists
+  if(!fs.existsSync(folderLocationPath2)) {
+    fs.mkdirSync(folderLocationPath2 + '\\mods\\', {recursive: true})
+  }
+  
+  // backup and edit gameSettings.xml
+  if(!fs.existsSync(folderLocationPath2 + '\\backups\\')) {
+    fs.mkdirSync(folderLocationPath2 + '\\backups\\', {recursive: true})
+  }
+}
+
+setFirstRunServer()
+
+
+
 
 // -------------------------------------------------------
 // ### DON'T TOUCH FROM HERE.
@@ -1168,19 +1222,39 @@ function getLocalModList() {
   let fsize = ''
   let files = fs.readdirSync(modsPath.toString(), { withFileTypes: true }) // (error, files) => {
 
+  
   files.forEach((file) => {
-    if (!file.name.endsWith('Copy.zip')) {
-      try {
-        const stats = fs.statSync(modsPath + file.name)
-        fsize = stats.size
-      } catch (err) {
-        console.error('file stats error: ' + err)
+    // console.log('---')
+    // console.log(file)
+    fs.lstat(modsPath.toString() + '\\' + file.name, (err, stats) => {
+      if (err) {
+        return console.log(err)
       }
-    
-      const hash = md5File.sync(modsPath + nodePath.sep + file.name)
-      result.push( [ file.name, modsPath + nodePath.sep + file.name, hash, fsize ] )
-    }
+
+      // console.log(`Is file: ${stats.isFile()}`)
+      // console.log(`Is directory: ${stats.isDirectory()}`)
+      // console.log(`Is symbolic link: ${stats.isSymbolicLink()}`)
+      // console.log(`Is FIFO: ${stats.isFIFO()}`)
+      // console.log(`Is socket: ${stats.isSocket()}`)
+      // console.log(`Is character device: ${stats.isCharacterDevice()}`)
+      // console.log(`Is block device: ${stats.isBlockDevice()}`)
+
+      if (stats.isFile()) {
+        if (!file.name.endsWith('Copy.zip')) {
+          try {
+            const stats = fs.statSync(modsPath + file.name)
+            fsize = stats.size
+          } catch (err) {
+            console.error('file stats error: ' + err)
+          }
+        
+          const hash = md5File.sync(modsPath + nodePath.sep + file.name)
+          result.push( [ file.name, modsPath + nodePath.sep + file.name, hash, fsize ] )
+        }
+      }
+    })
   })
+  console.log(result)
   
   resultArray.push(result)
   return resultArray
@@ -1295,7 +1369,6 @@ if (config.get('periodicCheck') == 'enabled') {
 if(config.get('anonymousStats') == 'enabled') {
   upStats()
 }
-
 
 async function backupMod(mod) {
   // console.log(mod)
