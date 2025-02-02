@@ -45,12 +45,14 @@ const deleteBackupFiles = () => window.renderer.deleteBackupFiles()
 const getCurrentVersion = window.renderer.getVersionNumber()
 
 let serverList = ref('')
-const getServerList = () => window.electron.ipcRenderer.send('getServerList')
+function getServerList() {
+  window.electron.ipcRenderer.send('getServerList')
+}
 window.electron.ipcRenderer.on('IPC_getServerList', (event, props) => {
+  console.log('props ipc_getServerList()')
   console.log(props[0])
   serverList.value = props[0].data
-  availableServers.value = modserverUrl
-  // console.log(serverList)
+  console.log('as: ' + availableServers.value)
 })
 
 window.electron.ipcRenderer.on('IPC_checkForChangelog', (event, props) => {
@@ -125,6 +127,17 @@ window.electron.ipcRenderer.on('IPC_sendFSClosed', (event, props) => {
   onFarmSimClosed()
 })
 
+window.electron.ipcRenderer.on('IPC_setSelectedProfile', (event, props) => {
+  console.log('IPC_setSelectedProfile')
+  console.log(props)
+  availableServers.value = props.data
+})
+
+window.electron.ipcRenderer.on('IPC_enableButtons', (event, props) => {
+  enableButtons()
+})
+
+
 
 function disableButtons() {
   //btnCheckmods.disabled = 'disabled'
@@ -132,38 +145,22 @@ function disableButtons() {
   let btnCheckModsAll = document.getElementById('btnCheckModsAll')
   let btnProfiles = document.getElementById('btnProfiles')
   let btnPlay = document.getElementById('btnPlay')
-  // btnCheckMods.setAttribute('disabled','disabled')
-  // btnCheckModsAll.setAttribute('disabled','disabled')
-  // btnProfiles.setAttribute('disabled','disabled')
-  // btnPlay.setAttribute('disabled','disabled')
   
   $('#btnCheckMods').addClass('no-click')
   $('#btnCheckModsAll').addClass('no-click')
-  $('#btnProfiles').addClass('no-click')
+  // $('#btnProfiles').addClass('no-click')
   $('#btnPlay').addClass('no-click')
-  // $('#btnCheckMods').attr('disabled','disabled') //disabled = "disabled"
-  // $('#btnCheckModsAll').attr('disabled','disabled') //disabled = "disabled"
-  // $('#btnProfiles').attr('disabled','disabled') //disabled = "disabled"
-  // $('#btnPlay').attr('disabled','disabled') //disabled = "disabled"
 }
 function enableButtons() {
   let btnCheckMods = document.getElementById('btnCheckMods')
   let btnCheckModsAll = document.getElementById('btnCheckModsAll')
   let btnProfiles = document.getElementById('btnProfiles')
   let btnPlay = document.getElementById('btnPlay')
-  // btnCheckMods.setAttribute('enabled','enabled')
-  // btnCheckModsAll.setAttribute('enabled','enabled')
-  // btnProfiles.setAttribute('enabled','enabled')
-  // btnPlay.setAttribute('enabled','enabled')
   
   $('#btnCheckMods').removeClass('no-click')
   $('#btnCheckModsAll').removeClass('no-click')
-  $('#btnProfiles').removeClass('no-click')
+  // $('#btnProfiles').removeClass('no-click')
   $('#btnPlay').removeClass('no-click')
-  // $('#btnCheckMods').enabled = "enabled"
-  // $('#btnCheckModsAll').enabled = "enabled"
-  // $('#btnProfiles').enabled = "enabled"
-  // $('#btnPlay').enabled = "enabled"
 }
 
 const { open, close } = useModal({
@@ -256,11 +253,7 @@ function openServerProfiles() {
 }
 
 function onNewServerSelected() {
-  // console.log(availableServers)
-  // console.log($('#availableServers2').val())
   window.electron.ipcRenderer.send('saveModserverUrl', $('#availableServers2').val())
-  // mod manager magic
-  // window.electron.ipcRenderer.send('runModManagerServerChange')
 }
 
 function onFarmSimClosed() {
@@ -289,14 +282,19 @@ function closeChangelogMsg() {
   window.electron.ipcRenderer.send('changelogNsgClosed', 1)
 }
 
+function setSelectedProfile() {
+  console.log('setSelectedProfile()')
+  window.electron.ipcRenderer.send('setSelectedProfile')
+}
+
 // ### Main Code
+getServerList()
+
 window.renderer.welcome()
 
 const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
 const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
 
-
-getServerList()
 
 
 </script>
@@ -319,7 +317,12 @@ getServerList()
         Introducing Multi Server Sync: Add all your friends/community's servers and keep up to date with a single click! <br />
         <br />
         <strong>Hurry up I want to play: (REQUIRED STEPS)</strong><br />
+        "I have updated!": <br />
+        Go to "Settings" and locate your FS25 folder.<br />
+        <br />
+        "First time user!": <br />
         First: Click on "Profiles" and add your server(s). Go to "Settings" and locate your FS25 folder.<br />
+        <br />
         Then select the server from the dropdown menu and click "Sync Mods" like usual. When finished press "Play".<br />
         <br />
         <strong>Tell me more!</strong><br />
@@ -345,7 +348,7 @@ getServerList()
     <div class="actions1">
       <div class="action">
         <select v-model="availableServers" id="availableServers2" class="form-select" @change="onNewServerSelected">
-          <option v-for="(server, key) in serverList">{{ key }}. {{ server.url }}</option>
+          <option v-for="(server, key) in serverList" :value="key">{{ server.url }}</option>
         </select>
       </div>
     </div>
@@ -457,7 +460,7 @@ getServerList()
                 </tr>
                 <tr>
                   <td class="settings_td">
-                    Mod Folder Location:</td>
+                    Current Mod Folder Location:</td>
                   <td class="settings_td">
                     <div class="input-group">
                       <input v-model="modFolderPath" type="text" class="form-control" value="modFolderPath" readonly />

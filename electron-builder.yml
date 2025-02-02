@@ -1,5 +1,6 @@
 appId: com.m000.inc
-productName: fs25-sync-tool
+productName: FS25-Sync-Tool
+artifactName: ${productName} ${version}
 directories:
   buildResources: build
 files:
@@ -14,9 +15,10 @@ win:
   executableName: fs25-sync-tool
 nsis:
   artifactName: ${name}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
+  shortcutName: ${productName}-${version}
+  uninstallDisplayName: ${productName} ${version}
   createDesktopShortcut: always
+  oneClick: true
 mac:
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:

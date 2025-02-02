@@ -14,7 +14,7 @@ import { upStats } from './stats'
 
 // -------------------------------------------------------
 // ### USER VARIABLES
-const spliffz_debug = false // enabled debug console. set to false for production build!
+const spliffz_debug = true // enabled debug console. set to false for production build!
 
 // ### Private Github Repo Config
 const isPrivateRepo = false // set to true if you want to use a private github repo.
@@ -28,6 +28,7 @@ const GH_TOKEN_token = ''
 // HERE BE DRAGONS AND UH EVIL WIZARDS.
 // -------------------------------------------------------
 process.setMaxListeners(0)
+let previousVersion = '1.2.5'
 
 // Tray icon
 let tray
@@ -64,7 +65,7 @@ function writeLog(msg, type=null) {
   // BrowserWindow.getFocusedWindow().webContents.send('IPC_sendToLog', { data: msg })
 }
 function IPC_sendModserverUrl(msg) {
-  mainWindow.send('getModserverUrl', { data: serverDisplayName })
+  mainWindow.send('getModserverUrl', { data: msg }) // serverDisplayName
 }
 
 function IPC_sendVersionNumber() {
@@ -100,6 +101,13 @@ function getJSONServerList(serverList) {
   return parsed
 }
 
+function IPC_setSelectedProfile() {
+  console.log('IPC_setSelectedProfile()')
+  mainWindow.send('IPC_setSelectedProfile', { data: config.get('modserverID')})
+  // mainWindow.send('IPC_setSelectedProfile', { data: config.get('modserverID') + '. ' + config.get('servers')[config.get('modserverID')].url } )
+  // mainWindow.send('IPC_setSelectedProfile', { data: config.get('servers')[config.get('modserverID')].url } )
+}
+
 function IPC_openServerProfiles() {
   console.log('IPC_openServerProfiles')
   mainWindow.send('IPC_getProfileFolderPath', { data: config.get('profileFolderLocation')})
@@ -109,7 +117,7 @@ function IPC_openServerProfiles() {
 
 function IPC_getServerList() {
   modIndex = config.get('servers')[config.get('modserverID')].id
-  mainWindow.send('IPC_getServerList', [{ data: getJSONServerList(config.get('servers')), name: serverDisplayName, modservID: modIndex }] )
+  mainWindow.send('IPC_getServerList', [ { data: getJSONServerList(config.get('servers')), name: serverDisplayName, modservID: modIndex } ] )
 }
 
 async function IPC_profiles_del_server(index) {
@@ -323,23 +331,25 @@ app.whenReady().then(() => {
     IPC_sendFSVersion()
     IPC_minimizeToTray()
     IPC_anonymousStats()
+    IPC_setSelectedProfile()
     checkForChangelog()
     backupGameSettingsXML()
     welcomeText()
   })
   
   ipcMain.on('saveModserverUrl', (event, props) => {
-    // console.log(props)
-    let split = props.split(" ")
-    let url = split[1]
-    let indexNR = split[0]
+    console.log('saveModserverUrl props: ')
+    console.log(props)
+    let index = props
+    let url = config.get('servers')[index].url
+    // let indexNR = split[0]
     // let index = indexNR.substr(indexNR.length-1, 1)
-    let index = indexNR.replace('.', '')
+    // let index = indexNR.replace('.', '')
     // console.log('indexNR: ' + index)
 
     config.set('modserverID', index)
     config.set('modserverHostname', url)
-    writeLog('Changed Modserver URL to: ' + props, 'info')
+    writeLog('Changed Modserver URL to: ' + url, 'info')
     modIndex = config.get('servers')[config.get('modserverID')].id
     modserverUrl = config.get('modserverHostname')
     setMainVars()
@@ -350,14 +360,14 @@ app.whenReady().then(() => {
   
     console.log('yada: ' + folderLocationPath + '\\mods\\')
     if (selectedFSVersion == '25') {
-      //config.set('fs25_modFolderLocation', [folderLocationPath + '\\mods\\'])
+      config.set('fs25_modFolderLocation', [folderLocationPath + '\\mods\\'])
       modsPath = folderLocationPath + '\\mods\\'
     } 
     if (selectedFSVersion == '22') {
-      //config.set('fs22_modFolderLocation', [folderLocationPath + '\\mods\\'])
+      config.set('fs22_modFolderLocation', [folderLocationPath + '\\mods\\'])
       modsPath = folderLocationPath + '\\mods\\'
     } 
-
+    IPC_sendModFolderPath()
 
     serverDisplayName = config.get('modserverID') + '. ' + config.get('modserverHostname')
     let slist = getJSONServerList(config.get('servers'))
@@ -399,6 +409,10 @@ app.whenReady().then(() => {
     IPC_minimizeToTray()
   })
   
+  ipcMain.on('setSelectedProfile', (event, props) => {
+    IPC_setSelectedProfile()
+  })
+
   ipcMain.on('locateModFolder', (event, props) => {
     // console.log(props)
     dialog.showOpenDialog({
@@ -406,12 +420,16 @@ app.whenReady().then(() => {
         'openDirectory'
       ]
     }).then(result => {
-      // console.log(result)
-      let fpath = result.filePaths + '\\'
-      // console.log('fpath: ' + fpath)
-      config.set(pre + 'modFolderLocation', [ fpath ])
-      mainWindow.send('modFolderDialogLocation', result.filePaths)
-      writeLog('Mods Folder Changed to: ' + result.filePaths)
+      if(result.canceled == true) {
+        // nothing for now
+      } else {
+        // console.log(result)
+        let fpath = result.filePaths + '\\'
+        // console.log('fpath: ' + fpath)
+        config.set(pre + 'modFolderLocation', [ fpath ])
+        mainWindow.send('modFolderDialogLocation', result.filePaths)
+        writeLog('Mods Folder Changed to: ' + result.filePaths)
+      }
     })
   })
 
@@ -422,11 +440,16 @@ app.whenReady().then(() => {
         'openDirectory'
       ]
     }).then(result => {
-      // console.log(result)
-      let fpath = result.filePaths + '\\'
-      // console.log('fpath: ' + fpath)
-      config.set(pre + 'FSFolderLocation', [ fpath ])
-      mainWindow.send('FSFolderDialogLocation', result.filePaths)
+      console.log(result)
+      if(result.canceled == true) {
+        // nothing for now
+      } else {
+        // console.log(result)
+        let fpath = result.filePaths + '\\'
+        // console.log('fpath: ' + fpath)
+        config.set(pre + 'FSFolderLocation', [ fpath ])
+        mainWindow.send('FSFolderDialogLocation', result.filePaths)
+      }
       writeLog('FS Folder Changed to: ' + result.filePaths)
     })
   })
@@ -525,7 +548,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.on('changelogNsgClosed', (event, props) => {
-    // config.set('previousVersion', app.getVersion())
+    config.set('previousVersion', app.getVersion())
   })
 
   ipcMain.on('openFolder', (event, props) => {
@@ -826,10 +849,13 @@ if (typeof config.get('servers') === 'undefined') {
 
 if (typeof config.get('profileFolderLocation') === 'undefined') {
   if (fs.existsSync(oneDrivePath)) {
-    config.set('profileFolderLocation', [ os.homedir + '\\OneDrive\\Documents\\My Games\\FS25-Sync-Tool' ])
+    config.set('profileFolderLocation', [ os.homedir + '\\OneDrive\\Documents\\My Games\\FS25-Sync-Tool\\' ])
   } else {
-    config.set('profileFolderLocation', [ os.homedir + '\\Documents\\My Games\\FS25-Sync-Tool' ] )
+    config.set('profileFolderLocation', [ os.homedir + '\\Documents\\My Games\\FS25-Sync-Tool\\' ] )
   }
+}
+if(!config.get('profileFolderLocation')[0].toString().endsWith('\\')) {
+  config.set('profileFolderLocation', [ config.get('profileFolderLocation') + '\\' ] )
 }
 if (typeof config.get('fs25_FSFolderLocation') === 'undefined') {
   config.set('fs25_FSFolderLocation', [""])
@@ -850,7 +876,7 @@ if (typeof config.get('minimizeToTray') === 'undefined') {
   config.set('minimizeToTray', 'disabled')
 }
 if (typeof config.get('previousVersion') === 'undefined') {
-  config.set('previousVersion', '1.2.5')
+  config.set('previousVersion', previousVersion)
 }
 if (typeof config.get('periodicCheckInterval') === 'undefined') {
   config.set('periodicCheckInterval', '60') // default to 60 seconds
@@ -859,7 +885,7 @@ if (typeof config.get('periodicCheckIntervalMS') === 'undefined') {
   config.set('periodicCheckIntervalMS', '300000') // 60000 ms
 }
 if (typeof config.get('selectedFSVersion') === 'undefined') {
-  config.set('selectedFSVersion', '')
+  config.set('selectedFSVersion', '25')
 }
 if (typeof config.get('modserverHostname') === 'undefined') {
   config.set('modserverHostname', '')
@@ -897,7 +923,6 @@ if (typeof config.get('modserverID') === 'undefined') {
   config.set('modserverID', '0')
 }
 
-
 function setMainVars() {
   serverUrl = config.get('modserverHostname')
   modFolderPath = config.get('modFolderLocation')
@@ -913,23 +938,36 @@ function setFirstRunServer() {
   if (config.get('servers') != '') {
     return
   }
-  // config.set('servers', [])
+  console.log('firstRunServer(): adding profile from existing hostname.')
+  // profiles_addServer(config.get('modserverHostname'))
+
   const id = randomChars(8)
   let pffl = config.get('profileFolderLocation')[0]
-  let folderLocationPath2 = join(pffl, 'profiles', id )
+  let folderLocationPath2 = join(pffl, 'profiles', id ) + "\\"
+  let fol = folderLocationPath2//.replace(/\\/g, '\\')
   console.log(folderLocationPath2)
 
-  let newServerArray = [ { "id": id, "name": "", "url":"https://fs25.rotjong.xyz", "folder": folderLocationPath2 } ]
+  let newServerArray = [ { "id": id, "name": "", "url": config.get('modserverHostname'), "folder": fol } ]
+  let url
+  if(config.get('modserverHostname') == '') {
+    url = 'https://change.me/'
+    config.set('modserverHostname', url)
+  } else {
+    url = config.get('modserverHostname')
+  }
+  newServerArray = [ { "id": id, "name": "", "url": url, "folder": fol } ]
   config.set('servers', newServerArray)
 
+  config.set('fs'+ config.get('selectedFSVersion') + '_modFolderLocation', [ fol ])
+
   // check if folders exists
-  if(!fs.existsSync(folderLocationPath2)) {
-    fs.mkdirSync(folderLocationPath2 + '\\mods\\', {recursive: true})
+  if(!fs.existsSync(fol)) {
+    fs.mkdirSync(fol + 'mods\\', {recursive: true})
   }
   
   // backup and edit gameSettings.xml
-  if(!fs.existsSync(folderLocationPath2 + '\\backups\\')) {
-    fs.mkdirSync(folderLocationPath2 + '\\backups\\', {recursive: true})
+  if(!fs.existsSync(fol + 'backups\\')) {
+    fs.mkdirSync(fol + 'backups\\', {recursive: true})
   }
 }
 
@@ -943,10 +981,10 @@ setFirstRunServer()
 // THERE BE DRAGONS AND SUCH. JUST GO AWAY.
 // -------------------------------------------------------
 let selectedFSVersion = config.get('selectedFSVersion');
-if (selectedFSVersion === '') {
-  selectedFSVersion = '25'
-  config.set('selectedFSVersion', selectedFSVersion)
-}
+// if (selectedFSVersion === '') {
+//   selectedFSVersion = '25'
+//   config.set('selectedFSVersion', selectedFSVersion)
+// }
 let pre = ''
 if (selectedFSVersion === '22') {
   pre = 'fs22_'
@@ -1110,18 +1148,25 @@ function deletingBackupFiles() {
 function profiles_addServer(url) {
   console.log('profiles_addServer!')
   writeLog('New server added: ' + url, 'info')
+
+  if(url.endsWith('/')) {
+    url = url.substr(0, url.length-1)
+  } 
+
   const id = randomChars(8)
   const servers = getJSONServerList(config.get('servers'))
   console.log(servers)
-  let folder = join(config.get('profileFolderLocation')[0], 'profiles', id)
+  let folder = join(config.get('profileFolderLocation')[0], 'profiles', id) + "\\" 
   console.log(folder)
   let fol = folder.replace(/\\/g, '\\\\')
   console.log(fol)
 
-  let newServerArray = '{ "id": "' + id + '", "name": "", "url": "' + url + '", "folder": "'+fol+'" }'
+  let newServerArray = '{ "id": "' + id + '", "name": "", "url": "' + url + '", "folder": "' + fol + '" }'
   console.log(newServerArray)
   servers.push(JSON.parse(newServerArray))
   console.log(servers)
+
+  config.set('fs' + config.get('selectedFSVersion') + '_modFolderLocation', [ fol ])
 
   config.set('servers', servers)
   console.log('--------------')
@@ -1214,6 +1259,7 @@ async function checkForNewMods(servModList, localList) {
 }
 
 function getLocalModList() {
+  const modsPath = config.get('servers')[config.get('modserverID')].folder + '\\mods\\'
   writeLog('Mods folder: ' + modsPath, 'info')
   console.log('Mods folder: ' + modsPath.toString())
 
@@ -1480,7 +1526,7 @@ export async function checkMods() {
         console.log('modsPath: ' + modsPath)
         dlUrl = setDLUrl()
         const url = dlUrl + el;
-        const writer = fs.createWriteStream(modsPath + el);
+        const writer = fs.createWriteStream(config.get('servers')[config.get('modserverID')].folder + '\\mods\\' + el);
 
         axios({
           method: 'get',
@@ -1505,6 +1551,8 @@ export async function checkMods() {
           console.error(err);
         })
       })
+    ).then(
+      mainWindow.send('IPC_enableButtons')
     )
   })
   

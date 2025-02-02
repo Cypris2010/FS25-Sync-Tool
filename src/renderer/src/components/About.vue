@@ -30,11 +30,16 @@ window.electron.ipcRenderer.on('getVersionNumber', (event, props) => {
     <div class="col">
       <div class="about">
         <ul class="about">
-          <li class="">FS25 Mod Sync Tool</li>
+          <li class="fw-bold">FS25 Mod Sync Tool</li>
           <li class="">
             v{{ currentVersion }} -
             <a target="_blank" href="#" rel="noreferrer" @click="openLink_Github()">Github</a>
           </li>
+          
+          <li class="">
+            &nbsp; 
+          </li>
+
           <li class="">
             Discord: 
             <a href="" target="_blank" rel="noreferrer" @click="openLink_Discord()">

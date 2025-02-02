@@ -73,6 +73,9 @@ Mods will **never** be deleted. This is by design so single player savegames won
 
 Eventually i'll make a better looking interface. *Eventually.*
 
+### [Known Issues]
+  - Sometimes when downloading mods it will say 'Please wait, still downloading mods...' and it will look like it's stuck. Most times it is and you need to restart the program and sync again. It will pick up where it stopped.
+
 ### [Transparency regarding data collection]
 I'm no fan of data collecting. I recommend Ublock Origin as default.   
 But in order to have any idea about how many times my program is installed I had to include very basic data collection.   

@@ -365,7 +365,9 @@ input {
 }
 
 .nav-link.active {
-  background-color: #212529 !important;
+  /* background-color: #212529 !important; */
+  background: rgb(33,37,41) !important;
+  background: linear-gradient(180deg, rgba(33,37,41,1) 0%, rgba(32,43,49,1) 62%, rgba(32,44,50,0.9236231707144474) 72%, rgba(255,255,255,0) 100%) !important; 
 }
 
 .tab-content {
@@ -419,6 +421,7 @@ input {
 
 .about {
   width: 100%;
+  font-size: 0.8rem;
 }
 
 .about ul {
