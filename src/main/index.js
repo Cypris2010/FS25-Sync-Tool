@@ -30,8 +30,8 @@ process.setMaxListeners(0)
 let tray
 let isWindowHidden = false
 
-import appIcon from '../../build/icon.ico?asset'
-
+import appIconIco from '../../build/icon.ico?asset'
+const appIcon = process.platform === 'win32' ? appIconIco : icon
 
 if (isPrivateRepo) {
   process.env.GH_TOKEN = GH_TOKEN_token
@@ -287,8 +287,8 @@ app.whenReady().then(() => {
       ]
     }).then(result => {
       // console.log(result)
-      let fpath = result.filePaths + '\\'
-      // console.log('fpath: ' + fpath)
+      let fpath = result.filePaths[0]
+      if (!fpath.endsWith(nodePath.sep)) fpath += nodePath.sep
       config.set(pre + 'modFolderLocation', [ fpath ])
       mainWindow.send('modFolderDialogLocation', result.filePaths)
       writeLog('Mods Folder Changed to: ' + result.filePaths)
@@ -355,7 +355,7 @@ app.on('window-all-closed', () => {
 // Okay.. so I fucked up somewhere between 1.2.2 and 1.2.3 and now I need to delete your config file for 1.2.3.
 // Don't worry, this is a one time thing (hopefully..)
 
-const appDataConfigFolder = join(os.homedir(), 'Appdata', 'Roaming', app.getName())
+const appDataConfigFolder = app.getPath('userData')
 // console.log(appDataConfigFolder)
 
 if (app.getVersion() == '1.2.3') {
@@ -394,29 +394,29 @@ if (typeof config.get('selectedFSVersion') === 'undefined') {
 if (typeof config.get('modserverHostname') === 'undefined') {
   config.set('modserverHostname', '')
 }
-const oneDrivePath = os.homedir + '\\OneDrive\\Documents\\'
-let modsPath = ''
-if (typeof config.get('fs25_modFolderLocation') === 'undefined') {
-  if (fs.existsSync(oneDrivePath)) {
-    modsPath = os.homedir + '\\OneDrive\\Documents\\My Games\\FarmingSimulator2025\\mods\\'
-    // config.set(pre + 'modFolderLocation', modsPath)
-    config.set('fs25_modFolderLocation', [modsPath])
+function getDefaultModsPath(version) {
+  const home = os.homedir()
+  if (process.platform === 'win32') {
+    const oneDrive = nodePath.join(home, 'OneDrive', 'Documents')
+    const docsBase = fs.existsSync(oneDrive)
+      ? nodePath.join(oneDrive, 'My Games')
+      : nodePath.join(home, 'Documents', 'My Games')
+    return nodePath.join(docsBase, 'FarmingSimulator20' + version, 'mods') + nodePath.sep
+  } else if (process.platform === 'darwin') {
+    return nodePath.join(home, 'Library', 'Application Support', 'FarmingSimulator20' + version, 'mods') + nodePath.sep
   } else {
-    modsPath = os.homedir + '\\Documents\\My Games\\FarmingSimulator2025\\mods\\'
-    // config.set(pre + 'modFolderLocation', modsPath)
-    config.set('fs25_modFolderLocation', [modsPath])
+    return nodePath.join(home, '.local', 'share', 'FarmingSimulator20' + version, 'mods') + nodePath.sep
   }
 }
+
+let modsPath = ''
+if (typeof config.get('fs25_modFolderLocation') === 'undefined') {
+  modsPath = getDefaultModsPath('25')
+  config.set('fs25_modFolderLocation', [modsPath])
+}
 if (typeof config.get('fs22_modFolderLocation') === 'undefined') {
-  if (fs.existsSync(oneDrivePath)) {
-    modsPath = os.homedir + '\\OneDrive\\Documents\\My Games\\FarmingSimulator2022\\mods\\'
-    // config.set(pre + 'modFolderLocation', modsPath)
-    config.set('fs22_modFolderLocation', [modsPath])
-  } else {
-    modsPath = os.homedir + '\\Documents\\My Games\\FarmingSimulator2022\\mods\\'
-    // config.set(pre + 'modFolderLocation', modsPath)
-    config.set('fs22_modFolderLocation', [modsPath])
-  }
+  modsPath = getDefaultModsPath('22')
+  config.set('fs22_modFolderLocation', [modsPath])
 }
 if (typeof config.get('backupEnabled') === 'undefined') {
   config.set('backupEnabled', 'disabled')
@@ -458,15 +458,8 @@ let modFolderPath = config.get(pre + 'modFolderLocation')
 console.log(modFolderPath)
 // console.log(typeof(modFolderPath))
 if (modFolderPath === '') {
-  if (fs.existsSync(oneDrivePath)) {
-    modsPath = os.homedir + '\\OneDrive\\Documents\\My Games\\FarmingSimulator20'+selectedFSVersion+'\\mods\\'
-    config.set(pre + 'modFolderLocation', modsPath)
-    // config.set('fs22_modFolderLocation', modsPath)
-  } else {
-    modsPath = os.homedir + '\\Documents\\My Games\\FarmingSimulator20'+selectedFSVersion+'\\mods\\'
-    config.set(pre + 'modFolderLocation', modsPath)
-    // config.set('fs22_modFolderLocation', modsPath)
-  }
+  modsPath = getDefaultModsPath(selectedFSVersion)
+  config.set(pre + 'modFolderLocation', modsPath)
 } else {
   modsPath = modFolderPath
 }
@@ -556,7 +549,7 @@ function deletingBackupFiles() {
 
   files.forEach((file) => {
     if (file.name.endsWith('.zip.backup')) {
-      fs.unlink(modsPath + file.name, (err) => {
+      fs.unlink(nodePath.join(modsPath, file.name), (err) => {
         if (err) {
           console.log('deletingBackupFiles: ' + err);
           return
@@ -636,7 +629,7 @@ function getLocalModList() {
   files.forEach((file) => {
     if (!file.name.endsWith('Copy.zip')) {
       try {
-        const stats = fs.statSync(modsPath + file.name)
+        const stats = fs.statSync(nodePath.join(modsPath, file.name))
         fsize = stats.size
       } catch (err) {
         console.error('file stats error: ' + err)
@@ -761,7 +754,7 @@ async function backupMod(mod) {
   writeLog('Making backup of file ' + mod, 'info')
   const newMod = mod + '.backup'
   try {
-    fs.copyFileSync(modsPath + mod, modsPath + newMod)
+    fs.copyFileSync(nodePath.join(modsPath, mod), nodePath.join(modsPath, newMod))
 
     console.log('backup of ' + mod + ' completed.')
   } catch (err) {
@@ -850,7 +843,7 @@ export async function checkMods() {
 
         dlUrl = setDLUrl()
         const url = dlUrl + el;
-        const writer = fs.createWriteStream(modsPath + el);
+        const writer = fs.createWriteStream(nodePath.join(modsPath, el));
 
         axios({
           method: 'get',
